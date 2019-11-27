@@ -6,7 +6,7 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
-
+from scrapy.downloadermiddlewares.retry import RetryMiddleware
 
 class SteamSpiderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,
@@ -32,6 +32,7 @@ class SteamSpiderMiddleware(object):
         # it has processed the response.
 
         # Must return an iterable of Request, dict or Item objects.
+        print('OUT', response.request._meta)
         for i in result:
             yield i
 
@@ -50,6 +51,15 @@ class SteamSpiderMiddleware(object):
 
         # Must return only requests (not items).
         for r in start_requests:
+            if spider.scrape_runner.rotate_proxy:
+                spider.scrape_runner.rotate_proxy = False
+                try:
+                    r._meta = {'proxy': spider.scrape_runner.proxy_generator.__next__()}
+                except StopIteration:
+                    spider.scrape_runner.restore_generator()
+                    r._meta = {'proxy': spider.scrape_runner.proxy_generator.__next__()}
+            elif r._meta is None:
+                r._meta = {'proxy': spider.scrape_runner.active_proxy}
             yield r
 
     def spider_opened(self, spider):
@@ -87,6 +97,13 @@ class SteamDownloaderMiddleware(object):
         # - return a Response object
         # - return a Request object
         # - or raise IgnoreRequest
+        if response.status in [403, 429] or not request._meta.get('proxy'):
+            print('-----429/430')
+            spider.scrape_runner.rotate_proxy = True
+        else:
+            # If we get good request --> use same proxy for next iteration in crawl loop
+            spider.scrape_runner.active_proxy = request._meta.get('proxy')
+            spider.scrape_runner.rotate_proxy = False
         return response
 
     def process_exception(self, request, exception, spider):
@@ -101,3 +118,12 @@ class SteamDownloaderMiddleware(object):
 
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
+
+
+class PriceMonitorRetryMiddleware(RetryMiddleware):
+    def process_exception(self, request, exception, spider):
+        print('EXCEP', exception.__class__,  request._meta.get('proxy'), request._meta.get('retry_times'))
+        if isinstance(exception, self.EXCEPTIONS_TO_RETRY) and request._meta.get('retry_times') == self.max_retry_times:
+            print('TIMEOUT --> ROTATE')
+            spider.scrape_runner.rotate_proxy = True
+        # return super().process_exception(request, exception, spider)
