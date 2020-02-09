@@ -142,6 +142,8 @@ class ScrapingRunner:
         'RETRY_TIMES': 1,
         'LOG_ENABLED': False
     })
+    items_query_url_part = 'render/?query=&start={start}&count={count}&country=PL&language=english&currency=6'
+    inventory_url = 'https://steamcommunity.com/profiles/76561198081196956/inventory#730'
 
     def __init__(self, spider_cls, items_listing_url, minimum_coefficient):
         self.spider_cls = spider_cls
@@ -149,8 +151,6 @@ class ScrapingRunner:
         self.minimum_coefficient = minimum_coefficient
 
         self.items_listing_url = items_listing_url
-        self.items_query_url_part = 'render/?query=&start={start}&count={count}&country=PL&language=english&currency=6'
-        self.inventory_url = 'https://steamcommunity.com/profiles/76561198081196956/inventory#730'
         self.start_urls = [
             self.items_listing_url + self.items_query_url_part.format(start=0, count=20)
         ]
