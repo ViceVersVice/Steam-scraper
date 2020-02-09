@@ -8,6 +8,7 @@
 from scrapy import signals
 from scrapy.downloadermiddlewares.retry import RetryMiddleware
 
+
 class SteamSpiderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the spider middleware does not modify the
@@ -127,3 +128,9 @@ class PriceMonitorRetryMiddleware(RetryMiddleware):
             print('TIMEOUT --> ROTATE')
             spider.scrape_runner.rotate_proxy = True
         # return super().process_exception(request, exception, spider)
+
+
+class PricingSearchSpiderMiddleware(SteamDownloaderMiddleware):
+    def process_start_requests(self, start_requests, spider):
+        for r in start_requests:
+            yield r
